@@ -3,30 +3,27 @@ from summarizer import generate_summary
 from sheet_uploader import upload_task
 
 
-PROJECT_KEYWORDS = [
-"chat keywords to logged in the database"
-]
-
-
 def build_daily_report():
 
     rows = get_today_chats()
 
+    print(f"\nTOTAL CHATS FOUND: {len(rows)}\n")
+
     filtered = []
 
+    # Take all chats
     for row in rows:
 
         content = row[3]
 
-        content_lower = content.lower()
+        if not content:
+            continue
 
-        if any(
-            keyword in content_lower
-            for keyword in PROJECT_KEYWORDS
-        ):
-            filtered.append(content)
+        filtered.append(content)
 
-    # remove duplicates
+    print(f"TOTAL NON-EMPTY CHATS: {len(filtered)}")
+
+    # Remove duplicates
     unique = []
 
     seen = set()
@@ -39,9 +36,22 @@ def build_daily_report():
 
             unique.append(item)
 
-    chat_text = "\n\n".join(unique)
+    print(f"UNIQUE CHATS FOUND: {len(unique)}")
 
-    chat_text = chat_text[:12000]
+    # Newest chats first
+    unique = unique[::-1]
+
+    # Take latest chats
+    latest_chats = unique[:10]
+
+    chat_text = "\n\n".join(latest_chats)
+
+    print("\n")
+    print("=" * 80)
+    print("TEXT SENT TO QWEN")
+    print("=" * 80)
+    print(chat_text[:5000])
+    print("=" * 80)
 
     summary = generate_summary(chat_text)
 
@@ -54,6 +64,8 @@ def build_daily_report():
 
     print("\nUPLOADING TO SHEET...\n")
 
+    uploaded_count = 0
+
     for line in summary.split("\n"):
 
         line = line.strip()
@@ -61,9 +73,16 @@ def build_daily_report():
         if not line:
             continue
 
+        # Upload only numbered points
+        if not line[0].isdigit():
+            continue
+
         upload_task(line)
 
-    print("\nDONE")
+        uploaded_count += 1
+
+    print(f"\nUPLOADED {uploaded_count} TASKS")
+    print("DONE")
 
 
 if __name__ == "__main__":
